@@ -1,4 +1,4 @@
-package com.postfinance.crypto_wallet.model;
+package com.postfinance.cryptowallet.model;
 
 import jakarta.persistence.*;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package com.postfinance.crypto_wallet;
+package com.postfinance.cryptowallet;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

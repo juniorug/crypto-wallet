@@ -7,7 +7,9 @@ import com.postfinance.cryptowallet.repository.AssetRepository;
 import com.postfinance.cryptowallet.repository.PerformanceRepository;
 import com.postfinance.cryptowallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,11 +19,70 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class WalletService {
 
-    private final WalletRepository walletRepository;
     private final AssetRepository assetRepository;
     private final PerformanceRepository performanceRepository;
+    private final WalletRepository walletRepository;
+    private final CoincapService coincapService;
 
-    public Wallet calculateWalletValue(Long walletId) {
+    public Wallet createWallet(Wallet wallet) {
+        Wallet savedWallet = walletRepository.save(wallet);
+        for (Asset asset : wallet.getAssets()) {
+            asset.setWallet(savedWallet);
+            assetRepository.save(asset);
+        }
+        return savedWallet;
+    }
+
+
+    @Async
+    @Transactional
+    public void updateWalletData(Long walletId) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        wallet.getAssets().forEach(asset -> {
+            Double latestPriceDouble = coincapService.getLatestPrice(asset.getSymbol());
+
+            if (latestPriceDouble != null) {
+                BigDecimal latestPrice = BigDecimal.valueOf(latestPriceDouble);
+                asset.setPrice(latestPrice);
+                assetRepository.save(asset);
+            }
+        });
+
+        BigDecimal totalValue = wallet.getAssets().stream()
+                .map(asset -> asset.getPrice().multiply(asset.getQuantity()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        wallet.setTotalValue(totalValue);
+        walletRepository.save(wallet);
+    }
+
+    @Async
+    public void updateAllWalletsData() {
+        List<Wallet> wallets = walletRepository.findAll();
+        wallets.forEach(wallet -> updateWalletData(wallet.getId()));
+    }
+
+    public void deleteWallet(Long walletId) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        for (Asset asset : wallet.getAssets()) {
+            assetRepository.delete(asset);
+        }
+
+        walletRepository.delete(wallet);
+    }
+
+    /**
+     * Fetch detailed wallet information, including total value,
+     * best and worst-performing assets.
+     * @param walletId ID of the wallet
+     *
+     * @return Wallet with detailed information
+     */
+    public Wallet getWalletDetails(Long walletId) {
 
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));

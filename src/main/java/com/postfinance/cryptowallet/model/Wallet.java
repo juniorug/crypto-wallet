@@ -23,19 +23,19 @@ public class Wallet {
     @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Asset> assets;
 
-    @Transient // Not persisted
+    @Transient
     private BigDecimal totalValue;
 
-    @Transient // Not persisted
+    @Transient
     private Asset bestAsset;
 
-    @Transient // Not persisted
+    @Transient
     private Performance bestPerformance;
 
-    @Transient // Not persisted
+    @Transient
     private Asset worstAsset;
 
-    @Transient // Not persisted
+    @Transient
     private Performance worstPerformance;
 
 }

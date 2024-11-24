@@ -1,3 +1,8 @@
+coincap:
+  api:
+    url: "https://api.coincap.io/v2"
+    key: "api-key"
+
 # Database configs
 spring:
   application:

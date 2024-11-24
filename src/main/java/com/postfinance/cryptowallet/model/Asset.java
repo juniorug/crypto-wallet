@@ -27,4 +27,8 @@ public class Asset {
     @Column(nullable = false)
     private BigDecimal price;
 
+    @ManyToOne
+    @JoinColumn(name = "wallet_id")
+    private Wallet wallet;
+
 }

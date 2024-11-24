@@ -1,6 +1,5 @@
 package com.postfinance.cryptowallet.service;
 
-import com.postfinance.cryptowallet.dto.WalletResponse;
 import com.postfinance.cryptowallet.model.Asset;
 import com.postfinance.cryptowallet.model.Performance;
 import com.postfinance.cryptowallet.model.Wallet;
@@ -10,6 +9,7 @@ import com.postfinance.cryptowallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,38 +21,54 @@ public class WalletService {
     private final AssetRepository assetRepository;
     private final PerformanceRepository performanceRepository;
 
-    /**
-     * Retrieves the wallet and calculates the total financial value of the assets
-     * in the wallet along with the best and worst performing assets.
-     * @param walletId ID of the wallet to be processed
-     * @return a WalletResponse containing the total value, best performing asset, and worst performing asset
-     */
-    public WalletResponse calculateWalletValue(Long walletId) {
+    public Wallet calculateWalletValue(Long walletId) {
 
-        walletRepository.findById(walletId).orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
 
         List<Asset> assets = assetRepository.findByWalletId(walletId);
 
-        double totalValue = 0.0;
+        BigDecimal totalValue = BigDecimal.ZERO;
         Asset bestAsset = null;
         Asset worstAsset = null;
+        Performance bestPerformance = null;
+        Performance worstPerformance = null;
+
+        double bestPerformancePercentage = Double.MIN_VALUE;
+        double worstPerformancePercentage = Double.MAX_VALUE;
 
         for (Asset asset : assets) {
-            double assetValue = asset.getQuantity().multiply(asset.getPrice()).doubleValue();
-            totalValue += assetValue;
+            BigDecimal assetValue = asset.getQuantity().multiply(asset.getPrice());
+            totalValue = totalValue.add(assetValue);
 
             Optional<Performance> performanceOpt = performanceRepository.findLatestPerformanceByAssetId(asset.getId());
-            Performance performance = performanceOpt.orElseThrow(() -> new RuntimeException("Performance data not found"));
 
-            if (bestAsset == null || performance.getPerformancePercentage() > bestAsset.getPerformance().getPerformancePercentage()) {
-                bestAsset = asset;
-            }
-            if (worstAsset == null || performance.getPerformancePercentage() < worstAsset.getPerformance().getPerformancePercentage()) {
-                worstAsset = asset;
+            if (performanceOpt.isPresent()) {
+                Performance performance = performanceOpt.get();
+                double performancePercentage = performance.getPerformancePercentage();
+
+                // Determine the best performing asset
+                if (bestAsset == null || performancePercentage > bestPerformancePercentage) {
+                    bestAsset = asset;
+                    bestPerformance = performance;
+                    bestPerformancePercentage = performancePercentage;
+                }
+
+                // Determine the worst performing asset
+                if (worstAsset == null || performancePercentage < worstPerformancePercentage) {
+                    worstAsset = asset;
+                    worstPerformance = performance;
+                    worstPerformancePercentage = performancePercentage;
+                }
             }
         }
 
-        // Return the response with total value and best/worst assets
-        return new WalletResponse(totalValue, bestAsset, worstAsset);
+        wallet.setTotalValue(totalValue);
+        wallet.setBestAsset(bestAsset);
+        wallet.setBestPerformance(bestPerformance);
+        wallet.setWorstAsset(worstAsset);
+        wallet.setWorstPerformance(worstPerformance);
+
+        return wallet;
     }
 }

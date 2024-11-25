@@ -7,6 +7,7 @@ import com.postfinance.cryptowallet.repository.AssetRepository;
 import com.postfinance.cryptowallet.repository.PerformanceRepository;
 import com.postfinance.cryptowallet.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +18,14 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WalletService {
 
     private final AssetRepository assetRepository;
     private final PerformanceRepository performanceRepository;
     private final WalletRepository walletRepository;
     private final CoincapService coincapService;
+    private static final String WALLET_NOT_FOUND = "Wallet not found";
 
     public Wallet createWallet(Wallet wallet) {
         Wallet savedWallet = walletRepository.save(wallet);
@@ -33,59 +36,64 @@ public class WalletService {
         return savedWallet;
     }
 
+    public Wallet getWalletDetails(Long walletId) {
+        return walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+    }
 
+    public void deleteWallet(Long walletId) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+
+        for (Asset asset : wallet.getAssets()) {
+            assetRepository.delete(asset);
+        }
+        walletRepository.delete(wallet);
+    }
+
+    public List<Wallet> findAllWallets() {
+        return walletRepository.findAll();
+    }
+
+    //@Async
     @Async
     @Transactional
     public void updateWalletData(Long walletId) {
+
+        log.info("Starting to update data for wallet ID: {}", walletId);
+
         Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+
+        log.info("Wallet {} found. Updating asset prices...", walletId);
 
         wallet.getAssets().forEach(asset -> {
             Double latestPriceDouble = coincapService.getLatestPrice(asset.getSymbol());
 
             if (latestPriceDouble != null) {
                 BigDecimal latestPrice = BigDecimal.valueOf(latestPriceDouble);
+                log.info("Updating price for asset {}: new price is {}", asset.getSymbol(), latestPrice);
                 asset.setPrice(latestPrice);
                 assetRepository.save(asset);
+            } else {
+                log.warn("Could not fetch latest price for asset {}", asset.getSymbol());
             }
         });
 
-        BigDecimal totalValue = wallet.getAssets().stream()
-                .map(asset -> asset.getPrice().multiply(asset.getQuantity()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        wallet.setTotalValue(totalValue);
-        walletRepository.save(wallet);
-    }
-
-    @Async
-    public void updateAllWalletsData() {
-        List<Wallet> wallets = walletRepository.findAll();
-        wallets.forEach(wallet -> updateWalletData(wallet.getId()));
-    }
-
-    public void deleteWallet(Long walletId) {
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
-
-        for (Asset asset : wallet.getAssets()) {
-            assetRepository.delete(asset);
-        }
-
-        walletRepository.delete(wallet);
+        calculateAndSaveWalletMetrics(walletId);
+        log.info("Successfully updated wallet data for wallet ID: {}", walletId);
     }
 
     /**
      * Fetch detailed wallet information, including total value,
      * best and worst-performing assets.
+     * Saves the metrics to the database.
      * @param walletId ID of the wallet
      *
-     * @return Wallet with detailed information
      */
-    public Wallet getWalletDetails(Long walletId) {
-
+    private void calculateAndSaveWalletMetrics(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
 
         List<Asset> assets = assetRepository.findByWalletId(walletId);
 
@@ -130,6 +138,6 @@ public class WalletService {
         wallet.setWorstAsset(worstAsset);
         wallet.setWorstPerformance(worstPerformance);
 
-        return wallet;
+        walletRepository.save(wallet);
     }
 }

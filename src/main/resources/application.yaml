@@ -28,8 +28,9 @@ spring:
 # Logging Configs
 logging:
   level:
-    org:
-      hibernate:
+    com.postfinance.cryptowallet: DEBUG
+    org.springframework: INFO
+    org.hibernate:
         SQL: DEBUG
         type:
           descriptor:

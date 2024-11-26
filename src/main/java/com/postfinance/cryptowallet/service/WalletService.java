@@ -1,9 +1,11 @@
 package com.postfinance.cryptowallet.service;
 
 import com.postfinance.cryptowallet.dto.WalletDTO;
+import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
 import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
 import com.postfinance.cryptowallet.model.Performance;
+import com.postfinance.cryptowallet.model.PerformanceResult;
 import com.postfinance.cryptowallet.model.Wallet;
 import com.postfinance.cryptowallet.repository.AssetRepository;
 import com.postfinance.cryptowallet.repository.PerformanceRepository;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,8 +95,8 @@ public class WalletService {
             }
         });
 
-        calculateAndSaveWalletMetrics(walletId);
-        log.info("Successfully updated wallet data for wallet ID: {}", walletId);
+        WalletPerformanceDTO walletPerformanceDTO = calculateAndSaveWalletMetrics(walletId);
+        log.info("Successfully updated wallet data for wallet ID: {}, walletPerformanceDTO: {}.", walletId, walletPerformanceDTO);
     }
 
     /**
@@ -103,7 +106,7 @@ public class WalletService {
      * @param walletId ID of the wallet
      *
      */
-    private void calculateAndSaveWalletMetrics(Long walletId) {
+    /*private void calculateAndSaveWalletMetrics(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
 
@@ -151,5 +154,68 @@ public class WalletService {
         wallet.setWorstPerformance(worstPerformance);
 
         walletRepository.save(wallet);
+    }*/
+
+    public WalletPerformanceDTO calculateAndSaveWalletMetrics(Long walletId) {
+        Wallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+
+        BigDecimal totalValue = calculateTotalValue(wallet);
+        PerformanceResult performanceResult = calculateAssetPerformance(wallet.getAssets());
+
+        wallet.setTotalValue(totalValue);
+        wallet.setBestAsset(performanceResult.getBestAsset());
+        wallet.setBestPerformance(performanceResult.getBestPerformance());
+        wallet.setWorstAsset(performanceResult.getWorstAsset());
+        wallet.setWorstPerformance(performanceResult.getWorstPerformance());
+
+        walletRepository.save(wallet);
+
+        return new WalletPerformanceDTO(
+                totalValue.setScale(2, RoundingMode.HALF_UP),
+                performanceResult.getBestAsset() != null ? performanceResult.getBestAsset().getSymbol() : null,
+                BigDecimal.valueOf(performanceResult.getBestPerformancePercentage()).setScale(2, RoundingMode.HALF_UP),
+                performanceResult.getWorstAsset() != null ? performanceResult.getWorstAsset().getSymbol() : null,
+                BigDecimal.valueOf(performanceResult.getWorstPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+        );
+    }
+
+    private BigDecimal calculateTotalValue(Wallet wallet) {
+        return wallet.getAssets().stream()
+                .map(asset -> asset.getQuantity().multiply(asset.getPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private PerformanceResult calculateAssetPerformance(List<Asset> assets) {
+        Asset bestAsset = null;
+        Asset worstAsset = null;
+        Performance bestPerformance = null;
+        Performance worstPerformance = null;
+
+        double bestPerformancePercentage = Double.MIN_VALUE;
+        double worstPerformancePercentage = Double.MAX_VALUE;
+
+        for (Asset asset : assets) {
+            Optional<Performance> performanceOpt = performanceRepository.findLatestPerformanceByAssetId(asset.getId());
+
+            if (performanceOpt.isPresent()) {
+                Performance performance = performanceOpt.get();
+                double performancePercentage = performance.getPerformancePercentage();
+
+                if (bestAsset == null || performancePercentage > bestPerformancePercentage) {
+                    bestAsset = asset;
+                    bestPerformance = performance;
+                    bestPerformancePercentage = performancePercentage;
+                }
+
+                if (worstAsset == null || performancePercentage < worstPerformancePercentage) {
+                    worstAsset = asset;
+                    worstPerformance = performance;
+                    worstPerformancePercentage = performancePercentage;
+                }
+            }
+        }
+
+        return new PerformanceResult(bestAsset, worstAsset, bestPerformance, worstPerformance, bestPerformancePercentage, worstPerformancePercentage);
     }
 }

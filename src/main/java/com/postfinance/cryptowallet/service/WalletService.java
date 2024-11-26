@@ -30,6 +30,10 @@ public class WalletService {
     public Wallet createWallet(Wallet wallet) {
         Wallet savedWallet = walletRepository.save(wallet);
         for (Asset asset : wallet.getAssets()) {
+            if (asset.getPrice() == null) {
+                Double latestPrice = coincapService.getLatestPrice(asset.getSymbol());
+                asset.setPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
+            }
             asset.setWallet(savedWallet);
             assetRepository.save(asset);
         }

@@ -18,7 +18,7 @@ public class AssetCache {
     @PostConstruct
     public void initializeCache() {
         symbolToIdMap = coincapService.getAllAssets().stream()
-                .collect(Collectors.toMap(Asset::getSymbol, Asset::getId));
+                .collect(Collectors.toMap(Asset::getSymbol, Asset::getExternalId));
     }
 
     public String getIdBySymbol(String symbol) {

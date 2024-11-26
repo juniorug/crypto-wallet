@@ -11,5 +11,5 @@ import java.util.Optional;
 public interface PerformanceRepository extends JpaRepository<Performance, Long> {
 
     @Query("SELECT p FROM Performance p WHERE p.asset.id = :assetId ORDER BY p.timestamp DESC")
-    Optional<Performance> findLatestPerformanceByAssetId(String assetId);
+    Optional<Performance> findLatestPerformanceByAssetId(Long assetId);
 }

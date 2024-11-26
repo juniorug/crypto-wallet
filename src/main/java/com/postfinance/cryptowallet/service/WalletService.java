@@ -38,14 +38,14 @@ public class WalletService {
             if (assetId == null) {
                 throw new RuntimeException("Asset not found for symbol: " + asset.getSymbol());
             }
-            asset.setId(assetId);
+            asset.setExternalId(assetId);
             if (asset.getPrice() == null) {
-                Double latestPrice = coincapService.getLatestPrice(asset.getName());
+                Double latestPrice = coincapService.getLatestPrice(asset.getExternalId());
                 asset.setPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
             }
-            assetRepository.save(asset);
         }
-        return walletMapper.toWalletDTO(walletRepository.save(wallet));
+        Wallet savedWallet = walletRepository.save(wallet);
+        return walletMapper.toWalletDTO(savedWallet);
     }
 
     public WalletDTO getWalletDetails(Long walletId) {
@@ -80,7 +80,7 @@ public class WalletService {
         log.info("Wallet {} found. Updating asset prices...", walletId);
 
         wallet.getAssets().forEach(asset -> {
-            Double latestPriceDouble = coincapService.getLatestPrice(asset.getName());
+            Double latestPriceDouble = coincapService.getLatestPrice(asset.getExternalId());
 
             if (latestPriceDouble != null) {
                 BigDecimal latestPrice = BigDecimal.valueOf(latestPriceDouble);

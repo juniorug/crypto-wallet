@@ -13,7 +13,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AssetDTO implements Serializable {
-    private String id;
+    private Long id;
+    private String externalId;
     private String name;
     private String symbol;
     private BigDecimal quantity;

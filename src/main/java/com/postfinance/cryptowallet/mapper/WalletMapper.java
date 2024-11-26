@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Component
 public class WalletMapper {
@@ -18,6 +17,7 @@ public class WalletMapper {
     public AssetDTO toAssetDTO(Asset asset) {
         return AssetDTO.builder()
                 .id(asset.getId())
+                .externalId(asset.getExternalId())
                 .name(asset.getName())
                 .symbol(asset.getSymbol())
                 .quantity(asset.getQuantity())
@@ -42,7 +42,7 @@ public class WalletMapper {
 
     public Asset coincapAssetToAsset(CoincapAsset coincapAsset) {
         return Asset.builder()
-                .id(coincapAsset.getId())
+                .externalId(coincapAsset.getId())
                 .name(coincapAsset.getName())
                 .symbol(coincapAsset.getSymbol())
                 .build();

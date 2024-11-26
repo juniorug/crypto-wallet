@@ -17,7 +17,11 @@ import java.math.BigDecimal;
 public class Asset {
 
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "external_id", nullable = false)
+    private String externalId;
 
     @Column(name = "name", nullable = false)
     private String name;

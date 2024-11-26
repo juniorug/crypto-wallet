@@ -1,6 +1,5 @@
 package com.postfinance.cryptowallet.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,8 +20,8 @@ public class Wallet {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "wallet_id")
     private List<Asset> assets;
 
     @Transient

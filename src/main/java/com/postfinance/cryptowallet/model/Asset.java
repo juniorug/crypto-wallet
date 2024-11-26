@@ -1,8 +1,8 @@
 package com.postfinance.cryptowallet.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,13 +11,16 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "assets")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Asset {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
+
+    @Column(name = "name", nullable = false)
+    private String name;
 
     @Column(nullable = false)
     private String symbol;
@@ -25,12 +28,7 @@ public class Asset {
     @Column(nullable = false)
     private BigDecimal quantity;
 
-    @Column(nullable = false)
-    private BigDecimal price = BigDecimal.ZERO;
-
-    @ManyToOne
-    @JoinColumn(name = "wallet_id")
-    @JsonBackReference
-    private Wallet wallet;
+    @Column(name = "price")
+    private BigDecimal price;
 
 }

@@ -1,5 +1,6 @@
 package com.postfinance.cryptowallet.controller;
 
+import com.postfinance.cryptowallet.dto.WalletDTO;
 import com.postfinance.cryptowallet.model.Wallet;
 import com.postfinance.cryptowallet.service.WalletAsyncService;
 import com.postfinance.cryptowallet.service.WalletService;
@@ -22,14 +23,14 @@ public class WalletController {
     }
 
     @PostMapping
-    public ResponseEntity<Wallet> createWallet(@RequestBody Wallet wallet) {
-        Wallet createdWallet = walletService.createWallet(wallet);
+    public ResponseEntity<WalletDTO> createWallet(@RequestBody Wallet wallet) {
+        WalletDTO createdWallet = walletService.createWallet(wallet);
         return ResponseEntity.ok(createdWallet);
     }
 
     @GetMapping("/{walletId}")
-    public ResponseEntity<Wallet> getWalletDetails(@PathVariable Long walletId) {
-        Wallet wallet = walletService.getWalletDetails(walletId);
+    public ResponseEntity<WalletDTO> getWalletDetails(@PathVariable Long walletId) {
+        WalletDTO wallet = walletService.getWalletDetails(walletId);
         return ResponseEntity.ok(wallet);
     }
 

@@ -1,6 +1,9 @@
 package com.postfinance.cryptowallet.service;
 
-import com.postfinance.cryptowallet.dto.AssetHistoryResponse;
+import com.postfinance.cryptowallet.dto.coincap.AssetHistoryResponse;
+import com.postfinance.cryptowallet.dto.coincap.AssetResponse;
+import com.postfinance.cryptowallet.mapper.WalletMapper;
+import com.postfinance.cryptowallet.model.Asset;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -10,12 +13,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+
 
 @Service
 @RequiredArgsConstructor
 public class CoincapService {
 
     private final RestTemplate restTemplate;
+    private final WalletMapper walletMapper;
+
+    private static final String ASSETS_URL = "/assets";
 
     @Value("${coincap.api.url}")
     private String apiUrl;
@@ -23,15 +31,22 @@ public class CoincapService {
     @Value("${coincap.api.key}")
     private String apiKey;
 
+    public List<Asset> getAllAssets() {
+        String url = apiUrl + ASSETS_URL;
+        ResponseEntity<AssetResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, generateHttpRequestWithHeader(), AssetResponse.class);
+        AssetResponse response = responseEntity.getBody();
+        return walletMapper.coincapAssetsToAssets(response.getData());
+    }
+
     // Fetch the latest price of an asset from Coincap API
     public Double getLatestPrice(String assetSymbol) {
-        String url = apiUrl + "/assets/" + assetSymbol + "/history?interval=d1";
+        String url = apiUrl + ASSETS_URL + assetSymbol + "/history?interval=d1";
         return fetchPriceFromApi(url);
     }
 
     // Fetch historical price for a given asset on a specific date
     public Double getHistoricalPrice(String assetSymbol, String date) {
-        String url = apiUrl + "/assets/" + assetSymbol + "/history?interval=d1&start=" + date + "&end=" + date;
+        String url = apiUrl + ASSETS_URL + assetSymbol + "/history?interval=d1&start=" + date + "&end=" + date;
         return fetchPriceFromApi(url);
     }
 
@@ -40,11 +55,7 @@ public class CoincapService {
      */
     private Double fetchPriceFromApi(String url) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + apiKey);
-            HttpEntity<String> request = new HttpEntity<>(headers);
-
-            ResponseEntity<AssetHistoryResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, AssetHistoryResponse.class);
+            ResponseEntity<AssetHistoryResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, generateHttpRequestWithHeader(), AssetHistoryResponse.class);
             AssetHistoryResponse response = responseEntity.getBody();
 
             if (response != null && response.getData() != null && !response.getData().isEmpty()) {
@@ -55,5 +66,11 @@ public class CoincapService {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private HttpEntity<String> generateHttpRequestWithHeader() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + apiKey);
+        return new HttpEntity<>(headers);
     }
 }

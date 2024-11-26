@@ -1,11 +1,14 @@
 package com.postfinance.cryptowallet.service;
 
+import com.postfinance.cryptowallet.dto.WalletDTO;
+import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
 import com.postfinance.cryptowallet.model.Performance;
 import com.postfinance.cryptowallet.model.Wallet;
 import com.postfinance.cryptowallet.repository.AssetRepository;
 import com.postfinance.cryptowallet.repository.PerformanceRepository;
 import com.postfinance.cryptowallet.repository.WalletRepository;
+import com.postfinance.cryptowallet.util.AssetCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -25,24 +28,29 @@ public class WalletService {
     private final PerformanceRepository performanceRepository;
     private final WalletRepository walletRepository;
     private final CoincapService coincapService;
+    private final WalletMapper walletMapper;
+    private final AssetCache assetCache;
     private static final String WALLET_NOT_FOUND = "Wallet not found";
 
-    public Wallet createWallet(Wallet wallet) {
-        Wallet savedWallet = walletRepository.save(wallet);
+    public WalletDTO createWallet(Wallet wallet) {
         for (Asset asset : wallet.getAssets()) {
+            String assetId = assetCache.getIdBySymbol(asset.getSymbol());
+            if (assetId == null) {
+                throw new RuntimeException("Asset not found for symbol: " + asset.getSymbol());
+            }
+            asset.setId(assetId);
             if (asset.getPrice() == null) {
-                Double latestPrice = coincapService.getLatestPrice(asset.getSymbol());
+                Double latestPrice = coincapService.getLatestPrice(asset.getName());
                 asset.setPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
             }
-            asset.setWallet(savedWallet);
             assetRepository.save(asset);
         }
-        return savedWallet;
+        return walletMapper.toWalletDTO(walletRepository.save(wallet));
     }
 
-    public Wallet getWalletDetails(Long walletId) {
-        return walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+    public WalletDTO getWalletDetails(Long walletId) {
+        return walletMapper.toWalletDTO(walletRepository.findById(walletId)
+                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND)));
     }
 
     public void deleteWallet(Long walletId) {
@@ -72,7 +80,7 @@ public class WalletService {
         log.info("Wallet {} found. Updating asset prices...", walletId);
 
         wallet.getAssets().forEach(asset -> {
-            Double latestPriceDouble = coincapService.getLatestPrice(asset.getSymbol());
+            Double latestPriceDouble = coincapService.getLatestPrice(asset.getName());
 
             if (latestPriceDouble != null) {
                 BigDecimal latestPrice = BigDecimal.valueOf(latestPriceDouble);
@@ -99,7 +107,7 @@ public class WalletService {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
 
-        List<Asset> assets = assetRepository.findByWalletId(walletId);
+        List<Asset> assets = wallet.getAssets();
 
         BigDecimal totalValue = BigDecimal.ZERO;
         Asset bestAsset = null;

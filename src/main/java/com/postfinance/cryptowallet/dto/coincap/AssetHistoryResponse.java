@@ -1,4 +1,4 @@
-package com.postfinance.cryptowallet.dto;
+package com.postfinance.cryptowallet.dto.coincap;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
@@ -6,15 +6,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AssetHistory implements Serializable {
+public class AssetHistoryResponse implements Serializable {
 
-    private String priceUsd;
-    private long time;
-    private String date;
+    private List<AssetHistory> data;
+    private long  timestamp;
 
 }

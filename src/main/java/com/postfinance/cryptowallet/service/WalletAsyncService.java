@@ -1,5 +1,6 @@
 package com.postfinance.cryptowallet.service;
 
+import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
 import com.postfinance.cryptowallet.model.Wallet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -17,8 +19,8 @@ public class WalletAsyncService {
     private final WalletService walletService;
 
     @Async
-    public void updateWalletData(Long walletId) {
-        walletService.updateWalletData(walletId);
+    public CompletableFuture<WalletPerformanceDTO> updateWalletData(Long walletId) {
+        return walletService.updateWalletData(walletId);
     }
 
     @Async

@@ -49,14 +49,18 @@ public class WalletService {
     public WalletDTO createWallet(Wallet wallet) {
         for (Asset asset : wallet.getAssets()) {
             String assetId = assetCache.getIdBySymbol(asset.getSymbol());
+            String assetName = assetCache.getNameBySymbol(asset.getSymbol());
             if (assetId == null) {
                 throw new AssetNotFoundException("Asset not found for symbol: " + asset.getSymbol());
             }
             asset.setExternalId(assetId);
+            asset.setName(assetName);
             if (asset.getPrice() == null) {
                 Double latestPrice = coincapService.getLatestPrice(asset.getExternalId());
                 asset.setInitialPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
                 asset.setPrice(asset.getInitialPrice());
+            } else {
+                asset.setInitialPrice(asset.getPrice());
             }
         }
         Wallet savedWallet = walletRepository.save(wallet);
@@ -85,7 +89,7 @@ public class WalletService {
     //@Async
     @Async
     @Transactional
-    public void updateWalletData(Long walletId) {
+    public CompletableFuture<WalletPerformanceDTO> updateWalletData(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletNotFoundException(WALLET_NOT_FOUND));
 
@@ -94,6 +98,7 @@ public class WalletService {
 
         WalletPerformanceDTO walletPerformanceDTO = calculateAndSaveWalletMetrics(walletId);
         log.info("Successfully updated wallet data for wallet ID: {}, walletPerformanceDTO: {}.", walletId, walletPerformanceDTO);
+        return CompletableFuture.completedFuture(walletPerformanceDTO);
     }
 
     public void updateAssetPricesConcurrently(List<Asset> assets) {

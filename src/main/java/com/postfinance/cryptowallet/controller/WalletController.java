@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/wallets")
@@ -35,9 +36,11 @@ public class WalletController {
     @PostMapping
     @Operation(summary = "Create a new wallet", description = "Creates a new wallet based on the provided wallet data.")
     @ApiResponse(responseCode = "200", description = "Wallet created successfully", content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json"))
-    public ResponseEntity<WalletDTO> createWallet(@RequestBody Wallet wallet) {
+    public ResponseEntity<WalletPerformanceDTO> createWallet(@RequestBody Wallet wallet) {
         WalletDTO createdWallet = walletService.createWallet(wallet);
-        return ResponseEntity.ok(createdWallet);
+        CompletableFuture<WalletPerformanceDTO> future  = walletAsyncService.updateWalletData(createdWallet.getId());
+        WalletPerformanceDTO walletPerformanceDTO = future.join();
+        return ResponseEntity.ok(walletPerformanceDTO);
     }
 
     @GetMapping("/{walletId}")
@@ -62,9 +65,10 @@ public class WalletController {
     @Operation(summary = "Update wallet data", description = "Triggers an asynchronous update for a wallet's data.")
     @ApiResponse(responseCode = "204", description = "Wallet data updated successfully")
     @ApiResponse(responseCode = "404", description = "Wallet not found")
-    public ResponseEntity<Void> updateWalletData(@PathVariable Long walletId) {
-        walletAsyncService.updateWalletData(walletId);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<WalletPerformanceDTO> updateWalletData(@PathVariable Long walletId) {
+        CompletableFuture<WalletPerformanceDTO> future = walletAsyncService.updateWalletData(walletId);
+        WalletPerformanceDTO walletPerformanceDTO = future.join();
+        return ResponseEntity.ok(walletPerformanceDTO);
     }
 
     @PutMapping("/update-data")

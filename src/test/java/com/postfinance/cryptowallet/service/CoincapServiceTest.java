@@ -1,5 +1,6 @@
 package com.postfinance.cryptowallet.service;
 
+import com.postfinance.cryptowallet.UnitTest;
 import com.postfinance.cryptowallet.dto.coincap.AssetHistory;
 import com.postfinance.cryptowallet.dto.coincap.AssetHistoryResponse;
 import com.postfinance.cryptowallet.dto.coincap.AssetResponse;
@@ -9,10 +10,8 @@ import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,7 +21,8 @@ import java.util.List;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@ExtendWith(MockitoExtension.class)
+//@ExtendWith(MockitoExtension.class)
+@UnitTest
 class CoincapServiceTest {
 
     @Mock
@@ -34,26 +34,23 @@ class CoincapServiceTest {
     @InjectMocks
     private CoincapService coincapService;
 
-    private static final String API_URL = "https://api.coincap.io/v2";
-    private static final String API_KEY = "some-api-key";
-
-    // Reusable mock objects
     private CoincapAsset mockCoincapAsset;
     private Asset mockAsset;
     private AssetHistoryResponse mockAssetHistoryResponse;
-    private AssetHistory mockAssetHistory;
+
+    private static final String BTC = "BTC";
 
     @BeforeEach
     void setUp() {
         // Setup common mocks
         mockCoincapAsset = new CoincapAsset();
-        mockCoincapAsset.setSymbol("BTC");
+        mockCoincapAsset.setSymbol(BTC);
         mockCoincapAsset.setName("Bitcoin");
         mockAsset = new Asset();
-        mockAsset.setSymbol("BTC");
+        mockAsset.setSymbol(BTC);
         mockAsset.setName("Bitcoin");
 
-        mockAssetHistory = new AssetHistory();
+        AssetHistory mockAssetHistory = new AssetHistory();
         mockAssetHistory.setPriceUsd("10000");
         mockAssetHistory.setTime(1L);
         mockAssetHistoryResponse = new AssetHistoryResponse(Collections.singletonList(mockAssetHistory), 0L);
@@ -79,7 +76,7 @@ class CoincapServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals("BTC", result.get(0).getSymbol());
+        assertEquals(BTC, result.get(0).getSymbol());
 
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetResponse.class));
         verify(walletMapper).coincapAssetsToAssets(any());
@@ -101,7 +98,7 @@ class CoincapServiceTest {
     void testGetHistoricalPrice() {
         mockRestTemplateResponse(AssetHistoryResponse.class, mockAssetHistoryResponse);
 
-        Double price = coincapService.getHistoricalPrice("BTC", "2024-01-01");
+        Double price = coincapService.getHistoricalPrice(BTC, "2024-01-01");
 
         assertNotNull(price);
         assertEquals(10000.0, price);
@@ -115,7 +112,7 @@ class CoincapServiceTest {
                 .thenThrow(new RuntimeException("API failed"));
 
         assertThrows(CoincapApiException.class, () -> {
-            coincapService.getLatestPrice("BTC");
+            coincapService.getLatestPrice(BTC);
         });
     }
 }

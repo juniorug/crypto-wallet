@@ -1,10 +1,6 @@
 package com.postfinance.cryptowallet.controller;
 
 import com.postfinance.cryptowallet.UnitTest;
-import com.postfinance.cryptowallet.dto.WalletDTO;
-import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
-import com.postfinance.cryptowallet.model.Wallet;
-import com.postfinance.cryptowallet.model.WalletHistory;
 import com.postfinance.cryptowallet.service.WalletAsyncService;
 import com.postfinance.cryptowallet.service.WalletHistoryService;
 import com.postfinance.cryptowallet.service.WalletService;
@@ -14,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -24,7 +19,6 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-//@WebMvcTest(WalletController.class)
 @UnitTest
 @Disabled
 class WalletControllerTest {

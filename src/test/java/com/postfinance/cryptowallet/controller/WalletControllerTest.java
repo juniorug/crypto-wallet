@@ -1,29 +1,33 @@
 package com.postfinance.cryptowallet.controller;
 
 import com.postfinance.cryptowallet.UnitTest;
+import com.postfinance.cryptowallet.dto.WalletDTO;
+import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
+import com.postfinance.cryptowallet.model.Wallet;
+import com.postfinance.cryptowallet.model.WalletHistory;
 import com.postfinance.cryptowallet.service.WalletAsyncService;
 import com.postfinance.cryptowallet.service.WalletHistoryService;
 import com.postfinance.cryptowallet.service.WalletService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @UnitTest
-@Disabled
 class WalletControllerTest {
 
-    private MockMvc mockMvc;
+    private static final double DOUBLE_100 = 100.0;
+    private static final long LONG_1L = 1L;
 
     @Mock
     private WalletService walletService;
@@ -37,108 +41,123 @@ class WalletControllerTest {
     @InjectMocks
     private WalletController walletController;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(walletController).build();
+    @Test
+    void testGreetings() {
+        ResponseEntity<String> response = walletController.greetings();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Hello, World! This is the Crypto Wallet API. Use /wallets to manage your wallets. ^^", response.getBody());
     }
 
     @Test
-    void testGreetings() throws Exception {
-        mockMvc.perform(get("/wallets"))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Hello, World! This is the Crypto Wallet API. Use /wallets to manage your wallets. ^^"));
-    }
-
-    /*@Test
-    void testCreateWallet() throws Exception {
+    void testCreateWallet() {
         Wallet wallet = new Wallet();
-        wallet.setId(1L);
+        wallet.setId(LONG_1L);
         WalletDTO walletDTO = new WalletDTO();
-        walletDTO.setId(1L);
+        walletDTO.setId(LONG_1L);
+
+        WalletPerformanceDTO mockPerformanceDTO = new WalletPerformanceDTO();
+        mockPerformanceDTO.setTotal(BigDecimal.valueOf(DOUBLE_100));
+        CompletableFuture<WalletPerformanceDTO> futureResponse = CompletableFuture.completedFuture(mockPerformanceDTO);
 
         when(walletService.createWallet(wallet)).thenReturn(walletDTO);
+        when(walletAsyncService.updateWalletData(wallet.getId())).thenReturn(futureResponse);
 
-        mockMvc.perform(post("/wallets")
-                        .contentType("application/json")
-                        .content("{\"id\": 1}"))  // Exemplo de conteúdo JSON
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+        WalletPerformanceDTO result = futureResponse.join();
+
+        ResponseEntity<WalletPerformanceDTO> response = walletController.createWallet(wallet);
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(BigDecimal.valueOf(DOUBLE_100), result.getTotal());
+
     }
 
     @Test
-    void testGetWalletDetails() throws Exception {
+    void testGetWalletDetails() {
         WalletDTO walletDTO = new WalletDTO();
-        walletDTO.setId(1L);
+        walletDTO.setId(LONG_1L);
 
-        when(walletService.getWalletDetails(1L)).thenReturn(walletDTO);
+        when(walletService.getWalletDetails(LONG_1L)).thenReturn(walletDTO);
 
-        mockMvc.perform(get("/wallets/{walletId}", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+        ResponseEntity<WalletDTO> response = walletController.getWalletDetails(LONG_1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
     }
 
     @Test
-    void testDeleteWallet() throws Exception {
-        doNothing().when(walletService).deleteWallet(1L);
+    void testDeleteWallet() {
+        doNothing().when(walletService).deleteWallet(LONG_1L);
 
-        mockMvc.perform(delete("/wallets/{walletId}", 1L))
-                .andExpect(status().isNoContent());
+        ResponseEntity<Void> response = walletController.deleteWallet(LONG_1L);
 
-        verify(walletService, times(1)).deleteWallet(1L);
+        assertNotNull(response);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(walletService, times(1)).deleteWallet(LONG_1L);
     }
 
     @Test
-    void testUpdateWalletData() throws Exception {
-        doNothing().when(walletAsyncService).updateWalletData(1L);
+    void testUpdateWalletData() {
+        WalletPerformanceDTO mockPerformanceDTO = new WalletPerformanceDTO();
+        mockPerformanceDTO.setTotal(BigDecimal.valueOf(DOUBLE_100));
+        CompletableFuture<WalletPerformanceDTO> futureResponse = CompletableFuture.completedFuture(mockPerformanceDTO);
 
-        mockMvc.perform(put("/wallets/{walletId}", 1L))
-                .andExpect(status().isNoContent());
+        when(walletAsyncService.updateWalletData(LONG_1L)).thenReturn(futureResponse);
 
-        verify(walletAsyncService, times(1)).updateWalletData(1L);
+        WalletPerformanceDTO result = futureResponse.join();
+
+        ResponseEntity<WalletPerformanceDTO> response = walletController.updateWalletData(LONG_1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(BigDecimal.valueOf(DOUBLE_100), result.getTotal());
     }
 
     @Test
-    void testUpdateAllWalletsData() throws Exception {
+    void testUpdateAllWalletsData() {
         doNothing().when(walletAsyncService).updateAllWalletsData();
 
-        mockMvc.perform(put("/wallets/update-data"))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Wallet data update process started successfully!"));
+        ResponseEntity<String> response = walletController.updateAllWalletsData();
 
-        verify(walletAsyncService, times(1)).updateAllWalletsData();
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("Wallet data update process started successfully!", response.getBody());
     }
 
     @Test
-    void testGetWalletPerformance() throws Exception {
+    void testGetWalletPerformance() {
         WalletPerformanceDTO performanceDTO = new WalletPerformanceDTO();
-        //performanceDTO.setWalletId(1L);
 
-        when(walletService.calculateAndSaveWalletMetrics(1L)).thenReturn(performanceDTO);
+        when(walletService.calculateAndSaveWalletMetrics(LONG_1L)).thenReturn(performanceDTO);
 
-        mockMvc.perform(get("/wallets/{walletId}/performance", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.walletId").value(1));
+        ResponseEntity<WalletPerformanceDTO> response = walletController.getWalletPerformance(LONG_1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
     }
 
     @Test
-    void testGetWalletHistory() throws Exception {
+    void testGetWalletHistory() {
         WalletHistory walletHistory = new WalletHistory();
-        walletHistory.setId(1L);
+        walletHistory.setId(LONG_1L);
         List<WalletHistory> history = List.of(walletHistory);
 
-        when(walletHistoryService.getWalletHistory(1L)).thenReturn(history);
+        when(walletHistoryService.getWalletHistory(LONG_1L)).thenReturn(history);
 
-        mockMvc.perform(get("/wallets/{walletId}/history", 1L))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1));
-    }*/
+        ResponseEntity<List<WalletHistory>> response = walletController.getWalletHistory(LONG_1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
 
     @Test
-    void testGetWalletHistoryEmpty() throws Exception {
-        when(walletHistoryService.getWalletHistory(1L)).thenReturn(List.of());
+    void testGetWalletHistoryEmpty() {
+        when(walletHistoryService.getWalletHistory(LONG_1L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/wallets/{walletId}/history", 1L))
-                .andExpect(status().isNoContent());
+        ResponseEntity<List<WalletHistory>> response = walletController.getWalletHistory(LONG_1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
     }
 }

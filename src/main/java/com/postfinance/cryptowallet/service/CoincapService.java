@@ -2,7 +2,6 @@ package com.postfinance.cryptowallet.service;
 
 import com.postfinance.cryptowallet.dto.coincap.AssetHistoryResponse;
 import com.postfinance.cryptowallet.dto.coincap.AssetResponse;
-import com.postfinance.cryptowallet.exception.AssetNotFoundException;
 import com.postfinance.cryptowallet.exception.CoincapApiException;
 import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;

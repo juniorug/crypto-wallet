@@ -35,7 +35,7 @@ public class CoincapService {
 
     public List<Asset> getAllAssets() {
         String url = apiUrl + ASSETS_URL;
-        log.info("CoincapService.getAllAssets called. url: {}. ", url);
+        log.debug("CoincapService.getAllAssets called. url: {}. ", url);
         ResponseEntity<AssetResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, generateHttpRequestWithHeader(), AssetResponse.class);
         AssetResponse response = responseEntity.getBody();
         return walletMapper.coincapAssetsToAssets(response.getData());
@@ -44,14 +44,14 @@ public class CoincapService {
     // Fetch the latest price of an asset from Coincap API
     public Double getLatestPrice(String assetSymbol) {
         String url = apiUrl + ASSETS_URL + assetSymbol + "/history?interval=d1";
-        log.info("CoincapService.getLatestPrice called. assetSymbol: {},  url: {}.  ", assetSymbol, url);
+        log.debug("CoincapService.getLatestPrice called. assetSymbol: {},  url: {}.  ", assetSymbol, url);
         return fetchPriceFromApi(url);
     }
 
     // Fetch historical price for a given asset on a specific date
     public Double getHistoricalPrice(String assetSymbol, String date) {
         String url = apiUrl + ASSETS_URL + assetSymbol + "/history?interval=d1&start=" + date + "&end=" + date;
-        log.info("CoincapService.getHistoricalPrice called. assetSymbol: {},  date: {}, url: {}.  ", assetSymbol, date, url);
+        log.debug("CoincapService.getHistoricalPrice called. assetSymbol: {},  date: {}, url: {}.  ", assetSymbol, date, url);
         return fetchPriceFromApi(url);
     }
 
@@ -60,7 +60,7 @@ public class CoincapService {
      */
     private Double fetchPriceFromApi(String url) {
         try {
-            log.info("CoincapService.fetchPriceFromApi called. url: {}.  ", url);
+            log.debug("CoincapService.fetchPriceFromApi called. url: {}.  ", url);
             ResponseEntity<AssetHistoryResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, generateHttpRequestWithHeader(), AssetHistoryResponse.class);
             AssetHistoryResponse response = responseEntity.getBody();
 

@@ -35,4 +35,7 @@ public class Asset {
     @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name = "initial_price")
+    private BigDecimal initialPrice;
+
 }

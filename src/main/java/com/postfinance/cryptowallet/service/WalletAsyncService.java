@@ -3,7 +3,9 @@ package com.postfinance.cryptowallet.service;
 import com.postfinance.cryptowallet.model.Wallet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +16,9 @@ import java.util.List;
 public class WalletAsyncService {
 
     private final WalletService walletService;
+
+    @Value("${wallet.update.interval}")
+    private long updateInterval;
 
     @Async
     public void updateWalletData(Long walletId) {
@@ -26,4 +31,13 @@ public class WalletAsyncService {
         List<Wallet> wallets = walletService.findAllWallets();
         wallets.forEach(wallet -> walletService.updateWalletData(wallet.getId()));
     }
+
+    @Scheduled(fixedRateString = "${wallet.update.interval}")
+    public void updateWalletPricesPeriodically() {
+        log.info("Starting scheduled wallet update...");
+        List<Wallet> wallets = walletService.findAllWallets();
+        wallets.forEach(wallet -> walletService.updateWalletData(wallet.getId()));
+        log.info("Scheduled wallet update completed.");
+    }
+
 }

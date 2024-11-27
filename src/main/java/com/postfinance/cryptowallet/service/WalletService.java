@@ -13,14 +13,24 @@ import com.postfinance.cryptowallet.repository.WalletRepository;
 import com.postfinance.cryptowallet.util.AssetCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +45,8 @@ public class WalletService {
     private final AssetCache assetCache;
     private static final String WALLET_NOT_FOUND = "Wallet not found";
 
+    private final ExecutorService executorService = Executors.newFixedThreadPool(3);
+
     public WalletDTO createWallet(Wallet wallet) {
         for (Asset asset : wallet.getAssets()) {
             String assetId = assetCache.getIdBySymbol(asset.getSymbol());
@@ -44,7 +56,8 @@ public class WalletService {
             asset.setExternalId(assetId);
             if (asset.getPrice() == null) {
                 Double latestPrice = coincapService.getLatestPrice(asset.getExternalId());
-                asset.setPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
+                asset.setInitialPrice(latestPrice != null ? BigDecimal.valueOf(latestPrice) : BigDecimal.ZERO);
+                asset.setPrice(asset.getInitialPrice());
             }
         }
         Wallet savedWallet = walletRepository.save(wallet);
@@ -74,87 +87,46 @@ public class WalletService {
     @Async
     @Transactional
     public void updateWalletData(Long walletId) {
-
-        log.info("Starting to update data for wallet ID: {}", walletId);
-
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
 
-        log.info("Wallet {} found. Updating asset prices...", walletId);
-
-        wallet.getAssets().forEach(asset -> {
-            Double latestPriceDouble = coincapService.getLatestPrice(asset.getExternalId());
-
-            if (latestPriceDouble != null) {
-                BigDecimal latestPrice = BigDecimal.valueOf(latestPriceDouble);
-                log.info("Updating price for asset {}: new price is {}", asset.getSymbol(), latestPrice);
-                asset.setPrice(latestPrice);
-                assetRepository.save(asset);
-            } else {
-                log.warn("Could not fetch latest price for asset {}", asset.getSymbol());
-            }
-        });
+        List<Asset> assets = wallet.getAssets();
+        updateAssetPricesConcurrently(assets);
 
         WalletPerformanceDTO walletPerformanceDTO = calculateAndSaveWalletMetrics(walletId);
         log.info("Successfully updated wallet data for wallet ID: {}, walletPerformanceDTO: {}.", walletId, walletPerformanceDTO);
     }
 
-    /**
-     * Fetch detailed wallet information, including total value,
-     * best and worst-performing assets.
-     * Saves the metrics to the database.
-     * @param walletId ID of the wallet
-     *
-     */
-    /*private void calculateAndSaveWalletMetrics(Long walletId) {
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
-
-        List<Asset> assets = wallet.getAssets();
-
-        BigDecimal totalValue = BigDecimal.ZERO;
-        Asset bestAsset = null;
-        Asset worstAsset = null;
-        Performance bestPerformance = null;
-        Performance worstPerformance = null;
-
-        double bestPerformancePercentage = Double.MIN_VALUE;
-        double worstPerformancePercentage = Double.MAX_VALUE;
+    public void updateAssetPricesConcurrently(List<Asset> assets) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (Asset asset : assets) {
-            BigDecimal assetValue = asset.getQuantity().multiply(asset.getPrice());
-            totalValue = totalValue.add(assetValue);
-
-            Optional<Performance> performanceOpt = performanceRepository.findLatestPerformanceByAssetId(asset.getId());
-
-            if (performanceOpt.isPresent()) {
-                Performance performance = performanceOpt.get();
-                double performancePercentage = performance.getPerformancePercentage();
-
-                // Determine the best performing asset
-                if (bestAsset == null || performancePercentage > bestPerformancePercentage) {
-                    bestAsset = asset;
-                    bestPerformance = performance;
-                    bestPerformancePercentage = performancePercentage;
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                log.info("Submitting request for asset {} at {}", asset.getSymbol(), LocalDateTime.now());
+                try {
+                    log.info("Fetching price for asset {}...", asset.getSymbol());
+                    Double latestPrice = coincapService.getLatestPrice(asset.getExternalId());
+                    if (latestPrice != null) {
+                        asset.setPrice(BigDecimal.valueOf(latestPrice));
+                        assetRepository.save(asset);
+                        log.info("Updated price for asset {}: {}", asset.getSymbol(), latestPrice);
+                    }
+                } catch (Exception e) {
+                    log.error("Error updating price for asset {}: {}", asset.getSymbol(), e.getMessage());
                 }
+            }, executorService);
 
-                // Determine the worst performing asset
-                if (worstAsset == null || performancePercentage < worstPerformancePercentage) {
-                    worstAsset = asset;
-                    worstPerformance = performance;
-                    worstPerformancePercentage = performancePercentage;
-                }
+            futures.add(future);
+
+            if (futures.size() == 3) {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                futures.clear();
             }
         }
 
-        wallet.setTotalValue(totalValue);
-        wallet.setBestAsset(bestAsset);
-        wallet.setBestPerformance(bestPerformance);
-        wallet.setWorstAsset(worstAsset);
-        wallet.setWorstPerformance(worstPerformance);
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+    }
 
-        walletRepository.save(wallet);
-    }*/
 
     public WalletPerformanceDTO calculateAndSaveWalletMetrics(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
@@ -174,11 +146,36 @@ public class WalletService {
         return new WalletPerformanceDTO(
                 totalValue.setScale(2, RoundingMode.HALF_UP),
                 performanceResult.getBestAsset() != null ? performanceResult.getBestAsset().getSymbol() : null,
-                BigDecimal.valueOf(performanceResult.getBestPerformancePercentage()).setScale(2, RoundingMode.HALF_UP),
+                performanceResult.getBestPerformancePercentage() > 0
+                        ? BigDecimal.valueOf(performanceResult.getBestPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO,
                 performanceResult.getWorstAsset() != null ? performanceResult.getWorstAsset().getSymbol() : null,
-                BigDecimal.valueOf(performanceResult.getWorstPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+                performanceResult.getWorstPerformancePercentage() > 0
+                        ? BigDecimal.valueOf(performanceResult.getWorstPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO
         );
     }
+
+    private Performance calculatePerformance(Asset asset) {
+        Performance performance = new Performance();
+        performance.setAssetId(asset.getId());
+        performance.setTimestamp(LocalDateTime.now(ZoneId.systemDefault()));
+
+        BigDecimal initialPrice = asset.getInitialPrice();
+        BigDecimal latestPrice = asset.getPrice();
+
+        if (initialPrice != null && latestPrice != null && initialPrice.compareTo(BigDecimal.ZERO) != 0) {
+            BigDecimal percentageChange = latestPrice.subtract(initialPrice)
+                    .divide(initialPrice, 10, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+            performance.setPerformancePercentage(percentageChange.doubleValue());
+        } else {
+            performance.setPerformancePercentage(0.0);
+        }
+
+        return performance;
+    }
+
 
     private BigDecimal calculateTotalValue(Wallet wallet) {
         return wallet.getAssets().stream()
@@ -192,8 +189,8 @@ public class WalletService {
         Performance bestPerformance = null;
         Performance worstPerformance = null;
 
-        double bestPerformancePercentage = Double.MIN_VALUE;
-        double worstPerformancePercentage = Double.MAX_VALUE;
+        double bestPerformancePercentage = Double.NEGATIVE_INFINITY;
+        double worstPerformancePercentage = Double.POSITIVE_INFINITY;
 
         for (Asset asset : assets) {
             Optional<Performance> performanceOpt = performanceRepository.findLatestPerformanceByAssetId(asset.getId());
@@ -202,13 +199,13 @@ public class WalletService {
                 Performance performance = performanceOpt.get();
                 double performancePercentage = performance.getPerformancePercentage();
 
-                if (bestAsset == null || performancePercentage > bestPerformancePercentage) {
+                if (performancePercentage > bestPerformancePercentage) {
                     bestAsset = asset;
                     bestPerformance = performance;
                     bestPerformancePercentage = performancePercentage;
                 }
 
-                if (worstAsset == null || performancePercentage < worstPerformancePercentage) {
+                if (performancePercentage < worstPerformancePercentage) {
                     worstAsset = asset;
                     worstPerformance = performance;
                     worstPerformancePercentage = performancePercentage;
@@ -216,6 +213,19 @@ public class WalletService {
             }
         }
 
-        return new PerformanceResult(bestAsset, worstAsset, bestPerformance, worstPerformance, bestPerformancePercentage, worstPerformancePercentage);
+        if (bestAsset == null || worstAsset == null) {
+            bestPerformancePercentage = 0.0;
+            worstPerformancePercentage = 0.0;
+        }
+
+        return new PerformanceResult(
+                bestAsset,
+                worstAsset,
+                bestPerformance,
+                worstPerformance,
+                bestPerformancePercentage,
+                worstPerformancePercentage
+        );
     }
+
 }

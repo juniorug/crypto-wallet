@@ -5,6 +5,8 @@ coincap:
 
 # Database configs
 spring:
+  main:
+    banner-mode: "off"
   application:
     name: crypto-wallet
   datasource:
@@ -36,6 +38,14 @@ logging:
           descriptor:
             sql:
               BasicBinder: TRACE
+
+#openApi config
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui
 
 # Server properties
 server:

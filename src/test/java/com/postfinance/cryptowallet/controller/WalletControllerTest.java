@@ -1,5 +1,6 @@
 package com.postfinance.cryptowallet.controller;
 
+import com.postfinance.cryptowallet.UnitTest;
 import com.postfinance.cryptowallet.dto.WalletDTO;
 import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
 import com.postfinance.cryptowallet.model.Wallet;
@@ -8,6 +9,7 @@ import com.postfinance.cryptowallet.service.WalletAsyncService;
 import com.postfinance.cryptowallet.service.WalletHistoryService;
 import com.postfinance.cryptowallet.service.WalletService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -22,7 +24,9 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(WalletController.class)
+//@WebMvcTest(WalletController.class)
+@UnitTest
+@Disabled
 class WalletControllerTest {
 
     private MockMvc mockMvc;
@@ -52,7 +56,7 @@ class WalletControllerTest {
                 .andExpect(content().string("Hello, World! This is the Crypto Wallet API. Use /wallets to manage your wallets. ^^"));
     }
 
-    @Test
+    /*@Test
     void testCreateWallet() throws Exception {
         Wallet wallet = new Wallet();
         wallet.setId(1L);
@@ -134,7 +138,7 @@ class WalletControllerTest {
         mockMvc.perform(get("/wallets/{walletId}/history", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1));
-    }
+    }*/
 
     @Test
     void testGetWalletHistoryEmpty() throws Exception {

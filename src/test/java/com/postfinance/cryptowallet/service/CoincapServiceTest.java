@@ -37,6 +37,7 @@ class CoincapServiceTest {
     private static final String API_URL = "https://api.coincap.io/v2";
     private static final String API_KEY = "some-api-key";
 
+    // Reusable mock objects
     private CoincapAsset mockCoincapAsset;
     private Asset mockAsset;
     private AssetHistoryResponse mockAssetHistoryResponse;
@@ -59,18 +60,18 @@ class CoincapServiceTest {
     }
 
     // Helper method to mock the restTemplate response
-    private void mockRestTemplateResponse(Object response, Class<?> responseClass) {
+    private <T> void mockRestTemplateResponse(Class<T> responseClass, T response) {
+        ResponseEntity<T> responseEntity = new ResponseEntity<>(response, HttpStatus.OK);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(responseClass)))
-                .thenReturn(new ResponseEntity<>(response, HttpStatus.OK));
+                .thenReturn(responseEntity);
     }
 
     @Test
     void testGetAllAssets() {
-        // Prepare AssetResponse
         AssetResponse assetResponse = new AssetResponse();
         assetResponse.setData(Collections.singletonList(mockCoincapAsset));
 
-        mockRestTemplateResponse(assetResponse, AssetResponse.class);
+        mockRestTemplateResponse(AssetResponse.class, assetResponse);
 
         when(walletMapper.coincapAssetsToAssets(any())).thenReturn(Collections.singletonList(mockAsset));
 
@@ -86,10 +87,8 @@ class CoincapServiceTest {
 
     @Test
     void testGetLatestPrice() {
-        // Mock restTemplate response for asset history
-        mockRestTemplateResponse(mockAssetHistoryResponse, AssetHistoryResponse.class);
+        mockRestTemplateResponse(AssetHistoryResponse.class, mockAssetHistoryResponse);
 
-        // Call the service method
         Double price = coincapService.getLatestPrice("BTC");
 
         assertNotNull(price);
@@ -100,7 +99,7 @@ class CoincapServiceTest {
 
     @Test
     void testGetHistoricalPrice() {
-        mockRestTemplateResponse(mockAssetHistoryResponse, AssetHistoryResponse.class);
+        mockRestTemplateResponse(AssetHistoryResponse.class, mockAssetHistoryResponse);
 
         Double price = coincapService.getHistoricalPrice("BTC", "2024-01-01");
 

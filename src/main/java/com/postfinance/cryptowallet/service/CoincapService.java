@@ -2,6 +2,8 @@ package com.postfinance.cryptowallet.service;
 
 import com.postfinance.cryptowallet.dto.coincap.AssetHistoryResponse;
 import com.postfinance.cryptowallet.dto.coincap.AssetResponse;
+import com.postfinance.cryptowallet.exception.AssetNotFoundException;
+import com.postfinance.cryptowallet.exception.CoincapApiException;
 import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
 import lombok.RequiredArgsConstructor;
@@ -69,7 +71,7 @@ public class CoincapService {
                 return Double.parseDouble(priceUsd);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new CoincapApiException(e.getMessage(), e.getCause());
         }
         return null;
     }

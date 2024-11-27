@@ -2,6 +2,8 @@ package com.postfinance.cryptowallet.service;
 
 import com.postfinance.cryptowallet.dto.WalletDTO;
 import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
+import com.postfinance.cryptowallet.exception.AssetNotFoundException;
+import com.postfinance.cryptowallet.exception.WalletNotFoundException;
 import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
 import com.postfinance.cryptowallet.model.Performance;
@@ -48,7 +50,7 @@ public class WalletService {
         for (Asset asset : wallet.getAssets()) {
             String assetId = assetCache.getIdBySymbol(asset.getSymbol());
             if (assetId == null) {
-                throw new RuntimeException("Asset not found for symbol: " + asset.getSymbol());
+                throw new AssetNotFoundException("Asset not found for symbol: " + asset.getSymbol());
             }
             asset.setExternalId(assetId);
             if (asset.getPrice() == null) {
@@ -85,7 +87,7 @@ public class WalletService {
     @Transactional
     public void updateWalletData(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+                .orElseThrow(() -> new WalletNotFoundException(WALLET_NOT_FOUND));
 
         List<Asset> assets = wallet.getAssets();
         updateAssetPricesConcurrently(assets);
@@ -133,7 +135,7 @@ public class WalletService {
 
     public WalletPerformanceDTO calculateAndSaveWalletMetrics(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
+                .orElseThrow(() -> new WalletNotFoundException(WALLET_NOT_FOUND));
 
         BigDecimal totalValue = calculateTotalValue(wallet);
         PerformanceResult performanceResult = calculateAssetPerformance(wallet.getAssets());

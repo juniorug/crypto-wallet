@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class WalletPerformanceDTO implements Serializable {
 
+    //private Long walletId;
     private BigDecimal total;
     private String bestAsset;
     private BigDecimal bestPerformance;

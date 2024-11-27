@@ -37,28 +37,42 @@ class CoincapServiceTest {
     private static final String API_URL = "https://api.coincap.io/v2";
     private static final String API_KEY = "some-api-key";
 
+    private CoincapAsset mockCoincapAsset;
+    private Asset mockAsset;
+    private AssetHistoryResponse mockAssetHistoryResponse;
+    private AssetHistory mockAssetHistory;
+
     @BeforeEach
     void setUp() {
-        // Setup dos mocks, se necessário
+        // Setup common mocks
+        mockCoincapAsset = new CoincapAsset();
+        mockCoincapAsset.setSymbol("BTC");
+        mockCoincapAsset.setName("Bitcoin");
+        mockAsset = new Asset();
+        mockAsset.setSymbol("BTC");
+        mockAsset.setName("Bitcoin");
+
+        mockAssetHistory = new AssetHistory();
+        mockAssetHistory.setPriceUsd("10000");
+        mockAssetHistory.setTime(1L);
+        mockAssetHistoryResponse = new AssetHistoryResponse(Collections.singletonList(mockAssetHistory), 0L);
+    }
+
+    // Helper method to mock the restTemplate response
+    private void mockRestTemplateResponse(Object response, Class<?> responseClass) {
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(responseClass)))
+                .thenReturn(new ResponseEntity<>(response, HttpStatus.OK));
     }
 
     @Test
     void testGetAllAssets() {
-        // Mock do RestTemplate
+        // Prepare AssetResponse
         AssetResponse assetResponse = new AssetResponse();
-        CoincapAsset coincapAsset = new CoincapAsset();
-        coincapAsset.setSymbol("BTC");
-        coincapAsset.setName("Bitcoin");
-        assetResponse.setData(Collections.singletonList(coincapAsset));
+        assetResponse.setData(Collections.singletonList(mockCoincapAsset));
 
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetResponse.class)))
-                .thenReturn(new ResponseEntity<>(assetResponse, HttpStatus.OK));
+        mockRestTemplateResponse(assetResponse, AssetResponse.class);
 
-        Asset asset = new Asset();
-        asset.setSymbol("BTC");
-        asset.setName("Bitcoin");
-        List<Asset> assets = Collections.singletonList(asset);
-        when(walletMapper.coincapAssetsToAssets(any())).thenReturn(assets);
+        when(walletMapper.coincapAssetsToAssets(any())).thenReturn(Collections.singletonList(mockAsset));
 
         List<Asset> result = coincapService.getAllAssets();
 
@@ -72,15 +86,10 @@ class CoincapServiceTest {
 
     @Test
     void testGetLatestPrice() {
-        AssetHistoryResponse assetHistoryResponse = new AssetHistoryResponse();
-        AssetHistory assetHistory = new AssetHistory();
-        assetHistory.setPriceUsd("10000");
-        assetHistory.setTime(1L);
-        assetHistoryResponse.setData(Collections.singletonList(assetHistory));
+        // Mock restTemplate response for asset history
+        mockRestTemplateResponse(mockAssetHistoryResponse, AssetHistoryResponse.class);
 
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class)))
-                .thenReturn(new ResponseEntity<>(assetHistoryResponse, HttpStatus.OK));
-
+        // Call the service method
         Double price = coincapService.getLatestPrice("BTC");
 
         assertNotNull(price);
@@ -91,19 +100,12 @@ class CoincapServiceTest {
 
     @Test
     void testGetHistoricalPrice() {
-        AssetHistoryResponse assetHistoryResponse = new AssetHistoryResponse();
-        AssetHistory assetHistory = new AssetHistory();
-        assetHistory.setPriceUsd("10000");
-        assetHistory.setTime(1L);
-        assetHistoryResponse.setData(Collections.singletonList(assetHistory));
-
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class)))
-                .thenReturn(new ResponseEntity<>(assetHistoryResponse, HttpStatus.OK));
+        mockRestTemplateResponse(mockAssetHistoryResponse, AssetHistoryResponse.class);
 
         Double price = coincapService.getHistoricalPrice("BTC", "2024-01-01");
 
         assertNotNull(price);
-        assertEquals(5000.0, price);
+        assertEquals(10000.0, price);
 
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class));
     }

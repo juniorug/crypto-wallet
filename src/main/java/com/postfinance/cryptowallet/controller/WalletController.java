@@ -3,11 +3,15 @@ package com.postfinance.cryptowallet.controller;
 import com.postfinance.cryptowallet.dto.WalletDTO;
 import com.postfinance.cryptowallet.dto.WalletPerformanceDTO;
 import com.postfinance.cryptowallet.model.Wallet;
+import com.postfinance.cryptowallet.model.WalletHistory;
 import com.postfinance.cryptowallet.service.WalletAsyncService;
+import com.postfinance.cryptowallet.service.WalletHistoryService;
 import com.postfinance.cryptowallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 
 @RestController
@@ -17,6 +21,7 @@ public class WalletController {
 
     private final WalletService walletService;
     private final WalletAsyncService walletAsyncService;
+    private final WalletHistoryService walletHistoryService;
 
     @GetMapping
     public ResponseEntity<String> greetings() {
@@ -57,5 +62,14 @@ public class WalletController {
     public ResponseEntity<WalletPerformanceDTO> getWalletPerformance(@PathVariable Long walletId) {
         WalletPerformanceDTO performanceDTO = walletService.calculateAndSaveWalletMetrics(walletId);
         return ResponseEntity.ok(performanceDTO);
+    }
+
+    @GetMapping("/{walletId}/history")
+    public ResponseEntity<List<WalletHistory>> getWalletHistory(@PathVariable Long walletId) {
+        List<WalletHistory> history = walletHistoryService.getWalletHistory(walletId);
+        if (history.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(history);
     }
 }

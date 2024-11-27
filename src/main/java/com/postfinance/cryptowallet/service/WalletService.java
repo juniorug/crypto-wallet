@@ -13,13 +13,9 @@ import com.postfinance.cryptowallet.repository.WalletRepository;
 import com.postfinance.cryptowallet.util.AssetCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,6 +37,7 @@ public class WalletService {
     private final PerformanceRepository performanceRepository;
     private final WalletRepository walletRepository;
     private final CoincapService coincapService;
+    private final WalletHistoryService walletHistoryService;
     private final WalletMapper walletMapper;
     private final AssetCache assetCache;
     private static final String WALLET_NOT_FOUND = "Wallet not found";
@@ -109,7 +106,12 @@ public class WalletService {
                     if (latestPrice != null) {
                         asset.setPrice(BigDecimal.valueOf(latestPrice));
                         assetRepository.save(asset);
-                        log.info("Updated price for asset {}: {}", asset.getSymbol(), latestPrice);
+
+                        Performance performance = calculatePerformance(asset);
+                        performanceRepository.save(performance);
+
+                        log.info("Updated price and performance for asset {}: price={}, performance={}",
+                                asset.getSymbol(), latestPrice, performance.getPerformancePercentage());
                     }
                 } catch (Exception e) {
                     log.error("Error updating price for asset {}: {}", asset.getSymbol(), e.getMessage());
@@ -128,6 +130,7 @@ public class WalletService {
     }
 
 
+
     public WalletPerformanceDTO calculateAndSaveWalletMetrics(Long walletId) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new RuntimeException(WALLET_NOT_FOUND));
@@ -136,22 +139,23 @@ public class WalletService {
         PerformanceResult performanceResult = calculateAssetPerformance(wallet.getAssets());
 
         wallet.setTotalValue(totalValue);
-        wallet.setBestAsset(performanceResult.getBestAsset());
-        wallet.setBestPerformance(performanceResult.getBestPerformance());
-        wallet.setWorstAsset(performanceResult.getWorstAsset());
-        wallet.setWorstPerformance(performanceResult.getWorstPerformance());
+        wallet.setBestAsset(performanceResult.bestAsset());
+        wallet.setBestPerformance(performanceResult.bestPerformance());
+        wallet.setWorstAsset(performanceResult.worstAsset());
+        wallet.setWorstPerformance(performanceResult.worstPerformance());
 
         walletRepository.save(wallet);
+        walletHistoryService.saveWalletHistory(walletId, totalValue);
 
         return new WalletPerformanceDTO(
                 totalValue.setScale(2, RoundingMode.HALF_UP),
-                performanceResult.getBestAsset() != null ? performanceResult.getBestAsset().getSymbol() : null,
-                performanceResult.getBestPerformancePercentage() > 0
-                        ? BigDecimal.valueOf(performanceResult.getBestPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+                performanceResult.bestAsset() != null ? performanceResult.bestAsset().getSymbol() : null,
+                performanceResult.bestPerformancePercentage() > 0
+                        ? BigDecimal.valueOf(performanceResult.bestPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO,
-                performanceResult.getWorstAsset() != null ? performanceResult.getWorstAsset().getSymbol() : null,
-                performanceResult.getWorstPerformancePercentage() > 0
-                        ? BigDecimal.valueOf(performanceResult.getWorstPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
+                performanceResult.worstAsset() != null ? performanceResult.worstAsset().getSymbol() : null,
+                performanceResult.worstPerformancePercentage() > 0
+                        ? BigDecimal.valueOf(performanceResult.worstPerformancePercentage()).setScale(2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO
         );
     }

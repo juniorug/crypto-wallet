@@ -10,6 +10,6 @@ import java.util.Optional;
 @Repository
 public interface PerformanceRepository extends JpaRepository<Performance, Long> {
 
-    @Query("SELECT p FROM Performance p WHERE p.assetId = :assetId ORDER BY p.timestamp DESC")
+    @Query(value = "SELECT * FROM performance p WHERE p.asset_id = :assetId ORDER BY p.timestamp DESC LIMIT 1", nativeQuery = true)
     Optional<Performance> findLatestPerformanceByAssetId(Long assetId);
 }

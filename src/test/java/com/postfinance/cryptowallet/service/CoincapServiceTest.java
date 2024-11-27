@@ -1,7 +1,9 @@
 package com.postfinance.cryptowallet.service;
 
+import com.postfinance.cryptowallet.dto.coincap.AssetHistory;
 import com.postfinance.cryptowallet.dto.coincap.AssetHistoryResponse;
 import com.postfinance.cryptowallet.dto.coincap.AssetResponse;
+import com.postfinance.cryptowallet.dto.coincap.CoincapAsset;
 import com.postfinance.cryptowallet.exception.CoincapApiException;
 import com.postfinance.cryptowallet.mapper.WalletMapper;
 import com.postfinance.cryptowallet.model.Asset;
@@ -21,7 +23,7 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
-public class CoincapServiceTest {
+class CoincapServiceTest {
 
     @Mock
     private RestTemplate restTemplate;
@@ -44,78 +46,73 @@ public class CoincapServiceTest {
     void testGetAllAssets() {
         // Mock do RestTemplate
         AssetResponse assetResponse = new AssetResponse();
-        Asset asset = new Asset();
-        asset.setSymbol("BTC");
-        asset.setName("Bitcoin");
-        assetResponse.setData(Collections.singletonList(asset));
+        CoincapAsset coincapAsset = new CoincapAsset();
+        coincapAsset.setSymbol("BTC");
+        coincapAsset.setName("Bitcoin");
+        assetResponse.setData(Collections.singletonList(coincapAsset));
 
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetResponse.class)))
                 .thenReturn(new ResponseEntity<>(assetResponse, HttpStatus.OK));
 
-        // Mock do WalletMapper
+        Asset asset = new Asset();
+        asset.setSymbol("BTC");
+        asset.setName("Bitcoin");
         List<Asset> assets = Collections.singletonList(asset);
         when(walletMapper.coincapAssetsToAssets(any())).thenReturn(assets);
 
-        // Chamada ao método
         List<Asset> result = coincapService.getAllAssets();
 
-        // Verificações
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("BTC", result.get(0).getSymbol());
 
-        // Verificar interações
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetResponse.class));
         verify(walletMapper).coincapAssetsToAssets(any());
     }
 
     @Test
     void testGetLatestPrice() {
-        // Mock da resposta do RestTemplate
         AssetHistoryResponse assetHistoryResponse = new AssetHistoryResponse();
-        assetHistoryResponse.setData(Collections.singletonList(new AssetHistoryResponse.Data("1", "10000")));
+        AssetHistory assetHistory = new AssetHistory();
+        assetHistory.setPriceUsd("10000");
+        assetHistory.setTime(1L);
+        assetHistoryResponse.setData(Collections.singletonList(assetHistory));
 
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class)))
                 .thenReturn(new ResponseEntity<>(assetHistoryResponse, HttpStatus.OK));
 
-        // Chamada ao método
         Double price = coincapService.getLatestPrice("BTC");
 
-        // Verificações
         assertNotNull(price);
         assertEquals(10000.0, price);
 
-        // Verificar interações
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class));
     }
 
     @Test
     void testGetHistoricalPrice() {
-        // Mock da resposta do RestTemplate
         AssetHistoryResponse assetHistoryResponse = new AssetHistoryResponse();
-        assetHistoryResponse.setData(Collections.singletonList(new AssetHistoryResponse.Data("1", "5000")));
+        AssetHistory assetHistory = new AssetHistory();
+        assetHistory.setPriceUsd("10000");
+        assetHistory.setTime(1L);
+        assetHistoryResponse.setData(Collections.singletonList(assetHistory));
 
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class)))
                 .thenReturn(new ResponseEntity<>(assetHistoryResponse, HttpStatus.OK));
 
-        // Chamada ao método
         Double price = coincapService.getHistoricalPrice("BTC", "2024-01-01");
 
-        // Verificações
         assertNotNull(price);
         assertEquals(5000.0, price);
 
-        // Verificar interações
         verify(restTemplate).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class));
     }
 
     @Test
     void testGetLatestPrice_ShouldThrowException_WhenApiFails() {
-        // Simulando uma falha na API
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(AssetHistoryResponse.class)))
                 .thenThrow(new RuntimeException("API failed"));
 
-        // Esperar que a exceção seja lançada
         assertThrows(CoincapApiException.class, () -> {
             coincapService.getLatestPrice("BTC");
         });
